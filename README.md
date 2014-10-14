@@ -21,8 +21,8 @@
 
 ## bmoreonrails.org October 2014
 
-by Mike Subelsky
-http://subelsky.com
+by [Mike Subelsky](http://subelsky.com)
+
 @subelsky
 
 ---
@@ -53,48 +53,101 @@ http://subelsky.com
 ---
 # Sample TSV file
 
+    staq_account_id	staq_start_at_timestamp	staq_end_at_timestamp	staq_connection_id	staq_key	staq_time_zone	staq_collection_mission_id	staq_collected_at	date	last_modified_date_time	creative_id	creative_type	platform	tag_key	banner
+    565	1970-01-01 00:00:00	1970-01-01 23:59:59	1637	36039976369	UTC	5962713	2014-10-09 18:33:31	2014-10-03	2014-10-03 21:58:55	36039976369	ThirdPartyCreative	staq_no_value_found	staq_no_value_found	staq_no_value_found
+
 ---
 # Sample manifest file
 
+    { "entries": [
+        { "url": "s3://example-bucket/example_file.tsv.gz",
+          "mandatory": true
+        }
+      ]
+    }
 ---
 # COPY from manifest file to Redshift
 
----
-# Loader worker (simplified)
+    COPY e1_performance_by_day ("staq_account_id", "staq_start_at_timestamp", "staq_end_at_timestamp", "staq_connection_id", "staq_key", "staq_time_zone", "staq_collection_mission_id", "staq_collected_at", "date", "ctr", "impressions")
+    FROM 's3://example-bucket/example_file.tsv.gz'
+    WITH CREDENTIALS AS 'aws_access_key_id=######;aws_secret_access_key=######'
+    NULL AS 'staq_no_value_found'
+    DELIMITER AS '	'
+    MANIFEST
+    ACCEPTINVCHARS
+    GZIP
+    IGNOREHEADER 1
+    STATUPDATE OFF
+    COMPUPDATE OFF;
 
 ---
 # StaqETL (simplified)
+
+    class StaqETL::Loader
+      attr_writer :database
+
+      def initialize(high_priority = false)
+        @high_priority = high_priority
+      end
+
+      def load(load_operations)
+        operations = [StaqETL::Operations::ConfigureSlotCount.new(high_priority)]
+
+        load_operations.each do |load_op|
+          command = if load_op.table_exists?
+                      StaqETL::Operations::Merge.new(load_op)
+                    else
+                      StaqETL::Operations::FirstCopy.new(load_op)
+                    end
+
+          operations += command.operations
+        end
+
+        database.execute(operations,high_priority)
+      end
+
+      private
+
+      attr_reader :high_priority
+
+      def database
+        @database ||= StaqRedshift::Database.new
+      end
+    end
 
 ---
 # Why use Redshift?
 
 ---
-# If you truly have big/complex data and want to analyze it with SQL
+# If you have big/complex data
 
-* Has relations
+* Is relational (needs JOIN)
+* You don't want to roll your own reporting primitives
 * Big enough to benefit from NoSQL advantages
+* Don't need full RDBMs guarantees
 
 ---
 # If you want cloud flexibility or AWS interoperability
 
-* Resizing on the fly
+* Resizing / restoring on the fly
 * Copy to/from S3 and other AWS products like DynamoDB
 
 ---
 # If you already are a Postgres shop
+
 * can use Postgres 8.3 DB drivers
 * can use Postgres to simulate Redshift locally
-
-## StaqRedshift code
 
 ---
 # Disadvantages / Considerations
 
-* Latency is not super fast, may need to cache/proxy
+* High latency, may need to cache/proxy
   * Short-duration queries can take several seconds to spin up
-* High performance requires careful tuning
+
+* Requires careful tuning for max benefit
   * Distribution keys
   * Sort keys
+
 * Constraints are only used for hinting the query planner
 * Leader node is a bottleneck
 
@@ -102,9 +155,10 @@ http://subelsky.com
 # Disadvantages / Considerations
 
 * No UPSERT
-* Not cheap to upgrade, big cost jump to larger nodes
+* Big cost jump to larger nodes
 * Loading kind of slow for large numbers of small files
-* May want to consider other competitors like Snowflake, Splout, AtomicDB
+* Consider other competitors
+  * Snowflake, Splout, AtomicDB
 * TSV/CSV/JSON not great for typed data
 
 ---
@@ -114,4 +168,14 @@ http://subelsky.com
   * (reserved for 3 years)
 
 ---
-# Questions?
+# Further reading
+
+* http://docs.aws.amazon.com/redshift/latest/dg/welcome.html
+* http://www.slideshare.net/AmazonWebServices/redshift-best-practices-part-1dp2
+* http://www.slideshare.net/AmazonWebServices/uses-and-best-practices-for-amazon-redshift
+
+---
+# Questions? Want a job?
+
+* mike@staq.com
+* http://subelsky.com
