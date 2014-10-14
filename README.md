@@ -53,8 +53,8 @@ by [Mike Subelsky](http://subelsky.com)
 ---
 # Sample TSV file
 
-    staq_account_id	staq_start_at_timestamp	staq_end_at_timestamp	staq_connection_id	staq_key	staq_time_zone	staq_collection_mission_id	staq_collected_at	date	last_modified_date_time	creative_id	creative_type	platform	tag_key	banner
-    565	1970-01-01 00:00:00	1970-01-01 23:59:59	1637	36039976369	UTC	5962713	2014-10-09 18:33:31	2014-10-03	2014-10-03 21:58:55	36039976369	ThirdPartyCreative	staq_no_value_found	staq_no_value_found	staq_no_value_found
+    account_id	start_at_timestamp	end_at_timestamp	collected_at	date	creative_id	creative_type	impressions
+    100	1970-01-01 00:00:00	1970-01-01 23:59:59	2014-10-09 18:33:31	100	ThirdPartyCreative	5400
 
 ---
 # Sample manifest file
@@ -68,7 +68,7 @@ by [Mike Subelsky](http://subelsky.com)
 ---
 # COPY from manifest file to Redshift
 
-    COPY e1_performance_by_day ("staq_account_id", "staq_start_at_timestamp", "staq_end_at_timestamp", "staq_connection_id", "staq_key", "staq_time_zone", "staq_collection_mission_id", "staq_collected_at", "date", "ctr", "impressions")
+    COPY e1_performance_by_day
     FROM 's3://example-bucket/example_file.tsv.gz'
     WITH CREDENTIALS AS 'aws_access_key_id=######;aws_secret_access_key=######'
     NULL AS 'staq_no_value_found'
